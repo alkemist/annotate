@@ -1,0 +1,167 @@
+<p-menubar [model]="imageMenuBar()">
+  <ng-template pTemplate="start">
+    <div class="mr-4">Annotate {{ version }}</div>
+  </ng-template>
+  <ng-template let-item let-root="root" pTemplate="item">
+    @if (item.command) {
+      <p-button [rounded]="true" [text]="true"
+                [disabled]="item.disabled || saving() || hasChange()"
+                (onClick)="item.command"
+                [icon]="item.icon"
+                [label]="item.label"/>
+    } @else {
+      <div class="p-4">{{ item.label }}</div>
+    }
+  </ng-template>
+  <ng-template pTemplate="end">
+    <div class="flex gap-2">
+      @if (fileLoaded()) {
+        <p-button (onClick)="save()" severity="danger" [disabled]="!hasChange()" icon="pi pi-save"/>
+        <p-button (onClick)="undo()" severity="danger" [disabled]="!hasChange()" icon="pi pi-undo"/>
+      }
+      @if (pageLoaded() || !saving()) {
+        <input #dirInput (change)="selectDirectory($event)"
+               style="display:none"
+               type="file"
+               webkitdirectory
+        />
+        <p-button icon="pi pi-folder" (onClick)="openDirectorySelection()" [label]="dirName()"/>
+      } @else {
+        <i class="pi pi-spin pi-cog" style="font-size: 2rem"></i>
+      }
+    </div>
+  </ng-template>
+</p-menubar>
+
+<div class="flex flex-grow-1">
+  <p-splitter [minSizes]="[100, 100]" [panelSizes]="[80, 20]" [style]="{ height:'100%', width: '100%' }"
+              class="flex flex-grow-1">
+    <ng-template pTemplate>
+      <div class="flex flex-grow-1" id="canvas" ondragstart="return false;"
+           ondrop="return false;">
+        @if (fileLoaded()) {
+          <img #image [src]="imageData()" (load)="onImageLoad()" alt="Image"/>
+        } @else if (this.selectedFile && !fileLoaded()) {
+          <div class="flex flex-grow-1 justify-content-center align-items-center">
+            <i class="pi pi-spin pi-cog" style="font-size: 2rem"></i>
+          </div>
+        }
+        <canvas #canvas style="width:100%"></canvas>
+      </div>
+    </ng-template>
+    <ng-template pTemplate>
+      <p-splitter [minSizes]="[20, 20, 40]" [panelSizes]="[30, 30, 40]" [style]="{ height:'100%', width: '100%' }"
+                  layout="vertical"
+                  styleClass="flex flex-grow-1">
+        <ng-template pTemplate>
+          @if (fileLoaded()) {
+            <div class="flex flex-column w-12">
+              <div class="flex align-items-center justify-content-between gap-2">
+                <div class="p-2 font-bold">Annotations</div>
+              </div>
+              <div class="flex flex-grow-1 relative">
+                <div class="scroll-y flex flex-grow-1 flex-column">
+                  @for (annotation of listAnnotations(); track $index) {
+                    <div class="flex align-items-center justify-content-between p-2">
+                      <div class="flex align-items-center gap-4">
+                        <p-button (click)="editAnnotation(annotation, $index)" [rounded]="true" [text]="true"
+                                  [label]="listLabels().at(annotation.index)?.name ?? annotation.index.toString()"
+                                  size="small"/>
+                      </div>
+                      <p-inputSwitch [(ngModel)]="annotation.visible" (onChange)="reDraw()"/>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          } @else if (selectedFile && annotationsLoading()) {
+            <div class="flex flex-grow-1 justify-content-center align-items-center">
+              <i class="pi pi-spin pi-cog" style="font-size: 2rem"></i>
+            </div>
+          }
+        </ng-template>
+        <ng-template pTemplate>
+          @if (dirName() && !labelsLoading()) {
+            <div class="flex flex-column w-12">
+              <div class="flex align-items-center justify-content-between gap-2">
+                <div class="p-2 font-bold">Labels</div>
+                <p-button (click)="addLabel()" [rounded]="true" [text]="true" icon="pi pi-plus"
+                          size="small"/>
+              </div>
+              <div class="flex flex-grow-1 relative">
+                <div class="scroll-y flex flex-grow-1 flex-column">
+                  @for (label of listLabels(); track $index) {
+                    <div class="flex align-items-center justify-content-between gap-2 p-1">
+                      <input (change)="onLabelChange()" [(ngModel)]="listLabels()[$index].name" pInputText
+                             style="width: 100%" type="text"/>
+                      <p-colorPicker [(ngModel)]="label.color" format="rgb" (onChange)="reDraw()" appendTo="body"/>
+                      <p-button [disabled]="removeLabelDisabled($index)" (click)="removeLabel($index)"
+                                [rounded]="true"
+                                [text]="true" icon="pi pi-minus"
+                                severity="danger"/>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          } @else if (labelsLoading()) {
+            <div class="flex flex-grow-1 justify-content-center align-items-center">
+              <i class="pi pi-spin pi-cog" style="font-size: 2rem"></i>
+            </div>
+          }
+        </ng-template>
+        <ng-template pTemplate>
+          @if (dirName()) {
+            <p-listbox
+              [filterFields]="['name']"
+              [filter]="true"
+              [listStyle]="{width: '100%'}"
+              [options]="listFiles()"
+              [disabled]="hasChange()"
+              [style]="{ width: '100%', height: '100%' }"
+              class="flex flex-grow-1"
+              styleClass="flex flex-column flex-grow-1"
+              dataKey="name"
+              emptySelectionMessage="No file found"
+              scrollHeight="200px"
+              [(ngModel)]="selectedFile"
+              (onChange)="onFileChange()"
+              [filterValue]="filterValue()"
+            >
+              <ng-template let-file pTemplate="item">
+                <div class="flex w-12 align-items-center justify-content-between gap-2">
+                  <div>{{ file.name }}</div>
+                </div>
+              </ng-template>
+            </p-listbox>
+          }
+        </ng-template>
+      </p-splitter>
+    </ng-template>
+  </p-splitter>
+</div>
+<p-dialog #annotationDialog [(visible)]="dialogVisible" [modal]="true" [style]="{ width: '25rem' }"
+          header="Edit annotation">
+  <div class="flex align-items-center gap-3 mb-3">
+    <label class="font-semibold w-6rem">Label</label>
+    <p-dropdown [(ngModel)]="selectedAnnotationLabel"
+                [appendTo]="annotationDialog"
+                [options]="listLabels()"
+                class="flex flex-grow-1"
+                optionLabel="name"
+                placeholder="Select a label"
+                styleClass="flex flex-grow-1">
+      <ng-template let-item pTemplate="selectedItem">
+        {{ item.name }}
+      </ng-template>
+    </p-dropdown>
+  </div>
+  <div class="flex justify-content-between gap-2">
+    <p-button (click)="removeAnnotation()" icon="pi pi-trash" severity="danger"/>
+    <div class="flex gap-2">
+      <p-button (click)="cloneAnnotation()" icon="pi pi-clone"/>
+      <p-button (click)="saveAnnotation()" icon="pi pi-check" label="Save"/>
+    </div>
+  </div>
+</p-dialog>
+<p-toast/>

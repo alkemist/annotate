@@ -1,0 +1,56 @@
+@import "primeng/resources/themes/lara-light-blue/theme.css";
+@import "primeng/resources/primeng.css";
+@import "primeflex/primeflex";
+@import "primeicons/primeicons.css";
+
+@layer reset, primeng;
+
+@layer reset {
+  html, body {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+  }
+
+  app-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+}
+
+p-menubarsub {
+  margin-left: auto !important;
+}
+
+.p-splitter-panel,
+.p-listbox-list-wrapper {
+  position: relative;
+  max-height: none !important;
+}
+
+.p-listbox-list-wrapper > ul,
+.p-splitter-panel .scroll-y {
+  position: absolute;
+  overflow: auto;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.p-listbox-list-wrapper,
+.p-listbox-list-wrapper > p-scroller,
+.p-listbox-list-wrapper > p-scroller > .p-scroller ng-star-inserted {
+  height: 100% !important;
+}
+
+.p-scrollpanel-content {
+  display: flex;
+}
+
+img {
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* IE 10 and IE 11 */
+  user-select: none; /* Standard syntax */
+}

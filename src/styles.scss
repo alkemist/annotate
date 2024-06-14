@@ -19,8 +19,15 @@
   }
 }
 
-p-menubarsub {
-  margin-left: auto !important;
+p-menubar {
+  p-menubarsub {
+    margin-left: auto !important;
+  }
+
+  .p-inputnumber-input {
+    width: 120px;
+    text-align: center;
+  }
 }
 
 .p-splitter-panel,

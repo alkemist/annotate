@@ -16,6 +16,7 @@ import {ToastModule} from "primeng/toast";
 import {MessageService} from "primeng/api";
 import {CanvasService} from "../services/canvas.service";
 import {ScrollerModule} from "primeng/scroller";
+import {InputNumberModule} from "primeng/inputnumber";
 
 const modules = [
   ButtonModule,
@@ -31,7 +32,8 @@ const modules = [
   RippleModule,
   ScrollPanelModule,
   ToastModule,
-  ScrollerModule
+  ScrollerModule,
+  InputNumberModule
 ]
 
 @NgModule({

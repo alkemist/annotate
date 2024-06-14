@@ -7,7 +7,6 @@ const fs = require("fs");
 let win
 
 function isDev() {
-  console.log(process.argv)
   return process.argv[2] === '--dev';
 }
 
@@ -33,6 +32,7 @@ function createWindow() {
         slashes: true
       })
     );
+    win.webContents.openDevTools()
   } else {
     // For build
     win.loadURL(
@@ -43,9 +43,6 @@ function createWindow() {
       })
     );
   }
-
-  // Open the DevTools.
-  // win.webContents.openDevTools()
 
   win.on('closed', function () {
     win = null
@@ -80,5 +77,13 @@ ipcMain.on("askToWrite", (event, filePath, content) => {
 
   fs.writeFile(filePath, content, () => {
     win.webContents.send("sendWriteEnd", filePath);
+  });
+})
+
+ipcMain.on("askToRemove", (event, filePath, content) => {
+  console.log('askToRemove', filePath)
+
+  fs.unlink(filePath, () => {
+    win.webContents.send("sendRemoveEnd", filePath);
   });
 })

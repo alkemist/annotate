@@ -26,8 +26,6 @@ export class StoreService {
   ]
   public filterValue: string = '';
   private compareEngine: CompareEngine<any> | null = null;
-  private annotations: Annotation[] = [];
-  private labels: AnnotationLabel[] = [];
   private labelsNames = ['classes.labels'];
   private lastNames = ['search.last'];
   private imageData: string = '';
@@ -47,6 +45,56 @@ export class StoreService {
     }, {allowSignalWrites: true});
 
     if (window.api !== undefined) {
+      window.api.receive("sendReadContent", (filePath: string, data: string) => {
+        const fileName = filePath.split('/').at(-1)!;
+        const ext = fileName.split('.').at(-1)!
+        const captureName = fileName.replace('.' + ext, '')
+
+        if (ext === 'txt') {
+          const annotations =
+            data.split("\n").filter(line => line.trim())
+              .map((line) => {
+                const splittedLine = line.split(' ');
+                const index = parseInt(splittedLine[0]);
+
+                return {
+                  index,
+                  points: splittedLine.slice(1).map(point => parseFloat(point)),
+                  visible: true,
+                }
+              })
+          this.sortAnnotations(annotations);
+          this._annotations.set(annotations);
+
+          this.compareEngine!.updateInLeft(this._annotations(), ['annotations'])
+          this.compareEngine!.leftToRight()
+
+          this.annotationsLoaded.set(true)
+        } else if (this.labelsNames.includes(fileName)) {
+          this._labels.set(
+            data.split("\n").filter(line => line.trim())
+              .map((label, index) => ({
+                id: index,
+                name: label,
+                color: this.colors[index] ?? tinycolor.random().toRgb(),
+              }))
+          );
+
+          this.compareEngine!.updateInLeft(this._labels(), ['labels'])
+          this.compareEngine!.leftToRight()
+
+          this.labelsLoaded.set(true)
+        } else if (this.lastNames.includes(fileName)) {
+          this.filterValue = data;
+          this.lastLoaded.set(true)
+        } else {
+          const annotateImage = this.filesMap.get(captureName);
+
+          this.imageData = `data:${annotateImage.imageType};base64, ${data}`;
+          this.imageLoaded.set(true)
+        }
+      })
+
       window.api.receive("sendWriteEnd", (filePath: string) => {
         const fileName = filePath.split('/').at(-1)!;
         const ext = filePath.split('.').at(-1)!
@@ -61,55 +109,22 @@ export class StoreService {
         }
       });
 
-      window.api.receive("sendReadContent", (filePath: string, data: string) => {
+      window.api.receive("sendRemoveEnd", (filePath: string) => {
         const fileName = filePath.split('/').at(-1)!;
-        const ext = fileName.split('.').at(-1)!
-        const captureName = fileName.replace('.' + ext, '')
-
-        if (data) {
-          if (ext === 'txt') {
-            this.annotations = data.split("\n").filter(line => line.trim())
-              .map((line) => {
-                const splittedLine = line.split(' ');
-                const index = parseInt(splittedLine[0]);
-
-                return {
-                  index,
-                  points: splittedLine.slice(1).map(point => parseFloat(point)),
-                  visible: true,
-                }
-              });
-            this.sortAnnotations()
-
-            this.compareEngine!.updateInLeft(this.annotations, ['annotations'])
-            this.compareEngine!.updateInRight(this.annotations, ['annotations'])
-
-            this.annotationsLoaded.set(true)
-          } else if (this.labelsNames.includes(fileName)) {
-            this.labels =
-              data.split("\n").filter(line => line.trim())
-                .map((label, index) => ({
-                  id: index,
-                  name: label,
-                  color: this.colors[index] ?? tinycolor.random().toRgb(),
-                }))
-
-            this.compareEngine!.updateInLeft(this.labels, ['labels'])
-            this.compareEngine!.updateInRight(this.labels, ['labels'])
-
-            this.labelsLoaded.set(true)
-          } else if (this.lastNames.includes(fileName)) {
-            this.filterValue = data;
-            this.lastLoaded.set(true)
-          } else {
-            const annotateImage = this.filesMap.get(captureName);
-
-            this.imageData = `data:${annotateImage.imageType};base64, ${data}`;
-            this.imageLoaded.set(true)
-          }
-        }
-      })
+      });
     }
+  }
+
+  private _labels = signal<AnnotationLabel[]>([]);
+
+  get labels() {
+    return this._labels.asReadonly();
+  }
+
+  private _annotations = signal<Annotation[]>([]);
+
+  get annotations() {
+    return this._annotations.asReadonly();
   }
 
   private _files = signal<AnnotateImage[]>([]);
@@ -121,7 +136,7 @@ export class StoreService {
   loadFile(annotateImage: AnnotateImage) {
     //console.log("loadFile", annotateImage);
     this.annotationsLoaded.set(false)
-    this.annotations = [];
+    this._annotations.set([]);
 
     this.compareEngine = new CompareEngine<any>(() => 'id',
       this.getState(),
@@ -142,8 +157,8 @@ export class StoreService {
 
   resetStore() {
     this.filesMap = new SmartMap<AnnotateImage, string>;
-    this.labels = [];
-    this.annotations = [];
+    this._labels.set([])
+    this._annotations.set([]);
 
     this.imageLoaded.set(false);
     this.annotationsLoaded.set(false);
@@ -228,22 +243,20 @@ export class StoreService {
     const lines = annotationsPoints.map(
       (
         (normPoint, index) =>
-          `${this.annotations[index].index} ${normPoint.xCenter} ${normPoint.yCenter} ${normPoint.w} ${normPoint.h}`
+          `${this._annotations()[index].index} ${normPoint.xCenter} ${normPoint.yCenter} ${normPoint.w} ${normPoint.h}`
       )
     );
     this.annotationsSaving.set(true)
     this.labelsSaving.set(true)
 
-    if (lines.length > 0) {
-      void this.saveFile(
-        annotateImage.annotationsPath ?? `${this.dirPath}/${annotateImage.name}.txt`,
-        lines.join("\n")
-      )
-    }
+    void this.saveFile(
+      annotateImage.annotationsPath ?? `${this.dirPath}/${annotateImage.name}.txt`,
+      lines.join("\n")
+    )
 
     void this.saveFile(
       this.labelsPath,
-      this.labels.map(label => label.name).join("\n")
+      this._labels().map(label => label.name).join("\n")
     )
 
     void this.saveFile(
@@ -258,6 +271,18 @@ export class StoreService {
     }
   }
 
+  removeImage(annotateImage: AnnotateImage) {
+    if (annotateImage.annotationsPath) {
+      void this.removeFile(
+        annotateImage.annotationsPath)
+    }
+    void this.removeFile(
+      annotateImage.imagePath
+    )
+    this.filesMap.delete(annotateImage.name);
+    this._files.set(this.filesMap.getValues());
+  }
+
   addAnnotation(normCoords: NormPoints, index = 0) {
     const annotation = {
       index,
@@ -269,16 +294,8 @@ export class StoreService {
       ],
       visible: true
     };
-    this.annotations.push(annotation)
+    this._annotations.set([...this._annotations(), annotation])
     return annotation;
-  }
-
-  getAnnotations() {
-    return this.annotations;
-  }
-
-  getLabels() {
-    return this.labels;
   }
 
   getImageData() {
@@ -286,48 +303,64 @@ export class StoreService {
   }
 
   editAnnotation(annotationIndex: number, label: AnnotationLabel) {
-    this.annotations[annotationIndex].index = label.id;
-    this.sortAnnotations();
+    console.log(annotationIndex, label)
+
+    const annotations = this._annotations()
+    annotations[annotationIndex].index = label.id;
+    this._annotations.set(annotations)
+
+    console.log(annotations);
     this.checkChanges();
   }
 
+  sortAnnotations(annotations: Annotation[]) {
+    annotations.sort((a, b) => a.index - b.index);
+  }
+
   removeAnnotation(annotationIndex: number) {
-    this.annotations.splice(annotationIndex, 1)
+    this._annotations.set(
+      this.annotations().filter((_, index) => index !== annotationIndex)
+    )
 
     this.checkChanges();
   }
 
   addLabel() {
-    const index = this.labels.length;
+    const index = this._labels().length;
     const color = this.colors[index] ?? tinycolor.random().toRgb()
 
-    this.labels.push({
+    const labels = this._labels();
+    labels.push({
       id: index,
       name: index.toString(),
       color
     });
+    this._labels.set(labels);
 
     this.checkChanges()
   }
 
   checkLabels() {
-    this.annotations.forEach((anonotation) => {
-      if (!this.labels.at(anonotation.index)) {
-        for (let i = this.labels.length - 1; i < anonotation.index; i++) {
+    this._annotations().forEach((annotation) => {
+      if (!this._labels().at(annotation.index)) {
+        for (let i = this._labels.length - 1; i < annotation.index; i++) {
           this.addLabel()
         }
       }
     })
   }
 
-  removeLabel(index: number) {
-    this.labels.splice(index, 1)
+  removeLabel(labelIndex: number) {
+    this._labels.set(
+      this._labels().filter((_, index) => index !== labelIndex)
+    )
 
     this.checkChanges();
   }
 
   updateAnnotations(normPoints: NormPoints[]) {
-    this.annotations.forEach((annotation, index) => {
+    const annotations = this._annotations();
+    annotations.forEach((annotation, index) => {
       annotation.points = [
         normPoints[index].xCenter,
         normPoints[index].yCenter,
@@ -335,7 +368,7 @@ export class StoreService {
         normPoints[index].h,
       ];
     })
-    this.sortAnnotations();
+    this._annotations.set(annotations);
 
     this.checkChanges()
   }
@@ -353,8 +386,12 @@ export class StoreService {
     this.labelsLoaded.set(false);
     this.annotationsLoaded.set(false);
 
-    this.labels = this.compareEngine!.getInLeft(['labels']) as AnnotationLabel[];
-    this.annotations = this.compareEngine!.getInLeft(['annotations']) as Annotation[];
+    this._labels.set(
+      this.compareEngine!.getInLeft(['labels']) as AnnotationLabel[]
+    );
+    this._annotations.set(
+      this.compareEngine!.getInLeft(['annotations']) as Annotation[]
+    );
 
     this.checkLabels();
 
@@ -365,21 +402,25 @@ export class StoreService {
   }
 
   duplicateAnnotation(index: number) {
-    let copy = TypeHelper.deepClone(this.annotations[index]);
-    copy = {
-      points: copy.points,
-      index: copy.index,
-      visible: true
-    }
-    this.annotations.push(copy)
-    this.sortAnnotations();
+    const annotations = TypeHelper.deepClone(
+      this._annotations()
+    );
+
+    let copy = TypeHelper.deepClone(
+      annotations[index]
+    );
+
+    annotations.push(copy)
+
+    this._annotations.set(annotations);
+
     this.checkChanges();
   }
 
   private getState() {
     return {
-      labels: this.labels,
-      annotations: this.annotations
+      labels: this._labels(),
+      annotations: this._annotations()
     }
   }
 
@@ -391,7 +432,7 @@ export class StoreService {
     return window.api.send("askToWrite", path, content);
   }
 
-  private sortAnnotations() {
-    this.annotations.sort((a, b) => a.index - b.index);
+  private async removeFile(path: string) {
+    return window.api.send("askToRemove", path);
   }
 }

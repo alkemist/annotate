@@ -1,23 +1,38 @@
-<p-menubar [model]="imageMenuBar()">
+<p-menubar>
   <ng-template pTemplate="start">
     <div class="mr-4">Annotate {{ version }}</div>
   </ng-template>
-  <ng-template let-item let-root="root" pTemplate="item">
-    @if (item.command) {
-      <p-button [rounded]="true" [text]="true"
-                [disabled]="item.disabled || saving() || hasChange()"
-                (onClick)="item.command"
-                [icon]="item.icon"
-                [label]="item.label"/>
-    } @else {
-      <div class="p-4">{{ item.label }}</div>
-    }
-  </ng-template>
   <ng-template pTemplate="end">
-    <div class="flex gap-2">
+    <div class="flex align-items-center gap-4">
       @if (fileLoaded()) {
+        @if (selectedFileIndex > 0) {
+          <div>
+            <p-button [rounded]="false" [text]="true"
+                      [disabled]="hasChange() || selectedFileIndex <= 1"
+                      (onClick)="onSelectionChange(selectedFileIndex - 1)"
+                      icon="pi pi-angle-left"/>
+            <p-inputNumber
+              [(ngModel)]="navigationIndex"
+              [showButtons]="false"
+              spinnerMode="horizontal"
+              [suffix]="' / ' + listFiles().length"
+              [step]="1"
+              [min]="1"
+              [disabled]="hasChange()"
+              [max]="listFiles().length"
+              (onBlur)="onSelectionChange(navigationIndex)"
+            />
+            <p-button [rounded]="false" [text]="true"
+                      [disabled]="hasChange() || selectedFileIndex >= listFiles().length"
+                      (onClick)="onSelectionChange(selectedFileIndex + 1)"
+                      icon="pi pi-angle-right"/>
+          </div>
+          <div class="p-2">{{ this.selectedFile?.name }}</div>
+        }
         <p-button (onClick)="save()" severity="danger" [disabled]="!hasChange()" icon="pi pi-save"/>
         <p-button (onClick)="undo()" severity="danger" [disabled]="!hasChange()" icon="pi pi-undo"/>
+        <p-button (onClick)="remove()" severity="danger" [disabled]="hasChange() || listFiles().length == 1"
+                  icon="pi pi-trash"/>
       }
       @if (pageLoaded() || !saving()) {
         <input #dirInput (change)="selectDirectory($event)"
@@ -58,6 +73,8 @@
             <div class="flex flex-column w-12">
               <div class="flex align-items-center justify-content-between gap-2">
                 <div class="p-2 font-bold">Annotations</div>
+                <p-button (click)="sortAnnotations()" [rounded]="true" [text]="true" icon="pi pi-sort-amount-down-alt"
+                          size="small"/>
               </div>
               <div class="flex flex-grow-1 relative">
                 <div class="scroll-y flex flex-grow-1 flex-column">

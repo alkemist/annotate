@@ -5,7 +5,7 @@ import {StoreService} from "./services/store.service";
 import {SharedModule} from "./modules/shared.module";
 import {AnnotateImage} from "./models/annotateImage";
 import {DirFile} from "./models/dirFile";
-import {MenuItem, MessageService} from "primeng/api";
+import {MessageService} from "primeng/api";
 import {Annotation} from "./models/annotation";
 import {AnnotationLabel} from "./models/annotationLabel";
 import {CanvasService} from "./services/canvas.service";
@@ -40,14 +40,10 @@ export class AppComponent implements AfterViewInit {
     !this.storeService.annotationsLoaded()
   )
   listAnnotations = computed(() =>
-    this.storeService.annotationsLoaded() && this.storeService.getAnnotations()
-      ? this.storeService.getAnnotations()
-      : []
+    this.storeService.annotations()
   );
   listLabels = computed(() =>
-    this.storeService.labelsLoaded() && this.storeService.getLabels()
-      ? this.storeService.getLabels()
-      : []
+    this.storeService.labels()
   );
   labelsLoading = computed(() =>
     this.dirName() && !this.storeService.labelsLoaded()
@@ -69,10 +65,10 @@ export class AppComponent implements AfterViewInit {
   hasChange = computed(() =>
     this.storeService.hasChange()
   );
-  imageMenuBar = signal<MenuItem[]>([])
   dialogVisible: boolean = false;
-  selectedAnnotationLabel?: AnnotationLabel;
+  selectedAnnotationLabel = signal<AnnotationLabel | null>(null);
   selectedFileIndex: number = 0;
+  navigationIndex: number = 0;
   private selectedAnnotationIndex: number | null = null;
 
   constructor(
@@ -90,12 +86,12 @@ export class AppComponent implements AfterViewInit {
 
   @HostListener('document:keydown.control.q', ['$event']) onCtrlQ(event: KeyboardEvent) {
     event.preventDefault();
-    this.prevFile();
+    this.onSelectionChange(this.selectedFileIndex - 1);
   }
 
   @HostListener('document:keydown.control.d', ['$event']) onCtrlD(event: KeyboardEvent) {
     event.preventDefault();
-    this.nextFile()
+    this.onSelectionChange(this.selectedFileIndex + 1);
   }
 
   @HostListener('document:keydown.control.z', ['$event']) onCtrlZ(event: KeyboardEvent) {
@@ -112,8 +108,8 @@ export class AppComponent implements AfterViewInit {
     this.canvasService.loadImage(
       this.canvas!.nativeElement,
       this.image!.nativeElement,
-      this.storeService.getAnnotations(),
-      this.storeService.getLabels()
+      this.storeService.annotations(),
+      this.storeService.labels()
     )
   }
 
@@ -144,7 +140,6 @@ export class AppComponent implements AfterViewInit {
     if (showError) {
       this.storeService.resetStore();
       this.canvasService.clear()
-      this.imageMenuBar.set([]);
       this.dirName.set("");
 
       this.selectedFile = null;
@@ -160,39 +155,21 @@ export class AppComponent implements AfterViewInit {
 
   onFileChange() {
     if (this.selectedFile) {
-      this.selectedFileIndex = this.listFiles().indexOf(this.selectedFile!);
+      const index = (this.listFiles().indexOf(this.selectedFile!)) + 1;
 
-      this.imageMenuBar.set([
-        {
-          disabled: this.selectedFileIndex == 0,
-          icon: 'pi pi-angle-left',
-          command: () => {
-            this.prevFile()
-          }
-        },
-        {
-          label: `${this.selectedFileIndex + 1} / ${this.listFiles().length}`
-        },
-        {
-          label: this.selectedFile?.name
-        },
-        {
-          disabled: this.selectedFileIndex == this.listFiles().length - 1,
-          icon: 'pi pi-angle-right',
-          command: () => {
-            this.nextFile()
-          }
-        },
-      ])
-
-      this.storeService.loadFile(this.selectedFile!)
+      if (index > 0) {
+        this.selectedFileIndex = this.navigationIndex = index;
+        this.storeService.loadFile(this.selectedFile!)
+      } else {
+        this.selectedFile = null;
+      }
     }
   }
 
   reDraw() {
     this.canvasService.reDraw(
-      this.storeService.getAnnotations(),
-      this.storeService.getLabels()
+      this.storeService.annotations(),
+      this.storeService.labels()
     )
   }
 
@@ -209,9 +186,9 @@ export class AppComponent implements AfterViewInit {
 
   editAnnotation(annotation: Annotation, annotationIndex: number) {
     this.dialogVisible = true;
-    this.selectedAnnotationLabel = this.listLabels().at(annotation.index)
+    this.selectedAnnotationLabel.set(this.listLabels().at(annotation.index)
       ? this.listLabels().at(annotation.index)!
-      : undefined;
+      : null);
     this.selectedAnnotationIndex = annotationIndex;
   }
 
@@ -219,7 +196,7 @@ export class AppComponent implements AfterViewInit {
     this.dialogVisible = false;
     this.storeService.editAnnotation(
       this.selectedAnnotationIndex!,
-      this.selectedAnnotationLabel!
+      this.selectedAnnotationLabel()!
     )
     this.reDraw()
   }
@@ -227,7 +204,7 @@ export class AppComponent implements AfterViewInit {
   removeAnnotation() {
     this.dialogVisible = false;
     this.storeService.removeAnnotation(this.selectedAnnotationIndex!)
-    this.canvasService.reDraw(this.storeService.getAnnotations(), this.storeService.getLabels())
+    this.reDraw()
   }
 
   removeLabelDisabled(index: number) {
@@ -237,6 +214,11 @@ export class AppComponent implements AfterViewInit {
 
   removeLabel(index: number) {
     this.storeService.removeLabel(index)
+  }
+
+  remove() {
+    this.storeService.removeImage(this.selectedFile!)
+    this.onSelectionChange(this.selectedFileIndex, true)
   }
 
   checkChanges() {
@@ -254,25 +236,31 @@ export class AppComponent implements AfterViewInit {
   }
 
   cloneAnnotation() {
-    this.storeService.duplicateAnnotation(this.selectedAnnotationIndex!)
+    this.storeService.duplicateAnnotation(this.selectedAnnotationIndex!);
   }
 
   addLabel() {
     this.storeService.addLabel()
   }
 
-  private prevFile() {
-    if (!this.hasChange() && !this.dialogVisible) {
-      this.selectedFile = this.listFiles()[this.selectedFileIndex - 1]
+  onSelectionChange(navigationIndex: number, forceChange = false) {
+    if (!navigationIndex || navigationIndex <= 0) navigationIndex = 1;
+    if (navigationIndex >= this.listFiles().length) navigationIndex = this.listFiles().length
+
+    if (
+      !this.hasChange()
+      && !this.dialogVisible
+      && (navigationIndex !== this.selectedFileIndex || forceChange)
+    ) {
+      this.selectedFileIndex = navigationIndex;
+      this.selectedFile = this.listFiles()[navigationIndex - 1]
       this.onFileChange();
     }
   }
 
-  private nextFile() {
-    if (!this.hasChange() && !this.dialogVisible) {
-      this.selectedFile = this.listFiles()[this.selectedFileIndex + 1]
-      this.onFileChange();
-    }
+  sortAnnotations() {
+    this.storeService.sortAnnotations(this.storeService.annotations())
+    this.reDraw();
   }
 
   private back() {

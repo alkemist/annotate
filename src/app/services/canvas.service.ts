@@ -58,6 +58,7 @@ export class CanvasService {
     canvas.addEventListener('touchstart', (e) => this.mouseDown(e as unknown as ClickEvent));
     canvas.addEventListener('touchmove', (e) => this.mouseMove(e as unknown as ClickEvent));
     canvas.addEventListener('touchend', () => this.mouseUp());
+    canvas.addEventListener('mouseleave', () => this.mouseLeave());
   }
 
   public loadImage(
@@ -115,10 +116,10 @@ export class CanvasService {
   }
 
   updateDragRectangle(left: number, top: number, width: number, height: number) {
-    if (left > 0 && left < this._width
-      && top > 0 && top < this._height
-      && left + width > 0 && left + width < this._width
-      && top + height > 0 && top + height < this._height
+    if (left >= 0 && left <= this._width
+      && top >= 0 && top <= this._height
+      && left + width >= 0 && left + width <= this._width
+      && top + height >= 0 && top + height <= this._height
     )
       this.rectangles[this.dragRectangleIndex!] = {
         ...this.rectangles[this.dragRectangleIndex!],
@@ -144,6 +145,28 @@ export class CanvasService {
   clear() {
     const ctx = this.canvas!.getContext("2d")!;
     ctx.clearRect(0, 0, this._width, this._height);
+  }
+
+  drawReferences(point: Point) {
+    this.drawReference(
+      {x: point.x, y: 0},
+      {x: point.x, y: this._height},
+    )
+    this.drawReference(
+      {x: 0, y: point.y},
+      {x: this._width, y: point.y},
+    )
+  }
+
+  drawReference(from: Point, to: Point) {
+    const ctx = this.canvas!.getContext("2d")!;
+    ctx.beginPath();
+    ctx.lineWidth = 1;
+    ctx.setLineDash([10, 5]);
+    ctx.strokeStyle = "#000";
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
   }
 
   private drawRectangles() {
@@ -209,15 +232,6 @@ export class CanvasService {
       }
 
       this.dragRectangle = this.rectangles[this.dragRectangleIndex!];
-
-      /*console.log("checkRectangle",
-        this.dragRectangleIndex, {
-          tl: this.dragTL,
-          tr: this.dragTR,
-          bl: this.dragBL,
-          br: this.dragBR,
-        }
-      );*/
     }
 
     return true;
@@ -227,20 +241,7 @@ export class CanvasService {
     let pos = this.getMousePos(e);
 
     if (this.dragRectangleIndex !== null) {
-      /*console.log(this.dragRectangleIndex,
-        this.dragTL,
-        this.dragTR,
-        this.dragBL,
-        this.dragBR,
-        pos);*/
-
       const rect = this.dragRectangle!;
-
-      /*console.log('------------------------------------')
-      console.log(rect.left, rect.top)
-      console.log(diffX, diffY)
-      console.log(this.startX, this.startY)
-      console.log(rect.left - diffX, rect.top - diffY)*/
 
       if (this.dragWholeRect) {
         const diffX = this.startX - pos.x;
@@ -291,6 +292,11 @@ export class CanvasService {
           height
         )
       }
+    }
+
+    if (this.dragRectangleIndex === null) {
+      this.drawRectangles()
+      this.drawReferences(pos);
     }
   }
 
@@ -356,6 +362,7 @@ export class CanvasService {
   private drawRectangle(left: number, top: number, width: number, height: number, color: string) {
     const ctx = this.canvas!.getContext("2d")!;
     ctx.beginPath();
+    ctx.setLineDash([]);
     ctx.lineWidth = this.rectangleLineWidth;
     ctx.fillStyle = color.replace(", 1)", `, ${this.rectangleOpacity})`);
     ctx.strokeStyle = color;
@@ -408,5 +415,9 @@ export class CanvasService {
       left + this.handleRadius + this.labelPadding,
       top - this.labelStickLength - this.labelPadding
     );
+  }
+
+  private mouseLeave() {
+    this.drawRectangles()
   }
 }

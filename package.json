@@ -1,18 +1,19 @@
 {
   "name": "annotate",
-  "version": "0.1.2",
+  "version": "0.1.12",
   "main": "app.js",
   "description": "Image labeler",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "electron": "electron .",
+    "electron": "electron . --dev",
     "electron-prod": "npm run build && npm run electron",
     "package:linux": "electron-packager . $npm_package_name --ignore=src --ignore=e2e --ignore=.*\\.conf\\.js --ignore=\"(angular-cli|tsconfig)\\.json\" --ignore=webpack.*\\.js --out=packages --platform=linux --arch=x64 --overwrite",
     "package:linux:deb": "electron-installer-debian --src packages/annotate-linux-x64/ --dest packages/ --arch amd64",
     "package:linux:snap": "electron-builder --linux snap",
     "package:win": "electron-packager . $npm_package_name --ignore=src --ignore=e2e --ignore=.*\\.conf\\.js --ignore=\"(angular-cli|tsconfig)\\.json\" --ignore=webpack.*\\.js --out=packages --platform=win32 --arch=all --overwrite ",
     "build": "ng build --base-href ./",
+    "build:linux:deb": "npm run build && npm run package:linux && npm run package:linux:deb",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

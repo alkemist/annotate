@@ -32,6 +32,7 @@ export class CanvasService {
   private startX = 0;
   private startY = 0;
   private canvas?: HTMLCanvasElement;
+  private image?: HTMLImageElement;
 
   constructor(private storeService: StoreService) {
   }
@@ -59,19 +60,19 @@ export class CanvasService {
     canvas.addEventListener('touchmove', (e) => this.mouseMove(e as unknown as ClickEvent));
     canvas.addEventListener('touchend', () => this.mouseUp());
     canvas.addEventListener('mouseleave', () => this.mouseLeave());
+    window.addEventListener('resize', () => this.resize());
   }
 
   public loadImage(
-    canvas: HTMLCanvasElement,
     image: HTMLImageElement,
     annotations: Annotation[],
     labels: AnnotationLabel[],
   ) {
-    //console.log("annotations", annotations);
+    this.image = image;
+    this._width = this.canvas!.width = image.naturalWidth;
+    this._height = this.canvas!.height = image.naturalHeight;
 
-    this._width = canvas.width = image.naturalWidth;
-    this._height = canvas.height = image.naturalHeight;
-    this.displayRatio = image.naturalWidth / image.width;
+    this.resize()
 
     this.reDraw(annotations, labels)
   }
@@ -102,7 +103,6 @@ export class CanvasService {
 
   public reDraw(annotations: Annotation[], labels: AnnotationLabel[]) {
     this.labels = labels;
-    //console.log('reDraw', annotations, labels)
 
     this.rectangles = [];
 
@@ -169,6 +169,10 @@ export class CanvasService {
     ctx.stroke();
   }
 
+  public resize() {
+    this.displayRatio = this.image!.naturalWidth / this.image!.width;
+  }
+
   private drawRectangles() {
     this.clear();
 
@@ -207,7 +211,6 @@ export class CanvasService {
     let pos = this.getMousePos(e);
     this.startX = pos.x;
     this.startY = pos.y;
-    //console.log("mouseDown", pos, this.dragRectangleIndex);
 
     if (this.dragRectangleIndex === null) {
       this.dragRectangleIndex = this.getRectangleOnClick(pos.x, pos.y);

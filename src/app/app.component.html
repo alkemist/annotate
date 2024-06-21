@@ -49,7 +49,8 @@
 </p-menubar>
 
 <div class="flex flex-grow-1">
-  <p-splitter [minSizes]="[100, 100]" [panelSizes]="[80, 20]" [style]="{ height:'100%', width: '100%' }"
+  <p-splitter (onResizeEnd)="onResize()" [minSizes]="[100, 100]" [panelSizes]="[80, 20]"
+              [style]="{ height:'100%', width: '100%' }"
               class="flex flex-grow-1">
     <ng-template pTemplate>
       <div class="flex flex-grow-1" id="canvas" ondragstart="return false;"

@@ -100,13 +100,12 @@ export class AppComponent implements AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.canvasService.loadCanvas(this.canvas!.nativeElement)
+    this.canvasService.loadCanvas(this.canvas!.nativeElement);
     this.pageLoaded.set(true);
   }
 
   onImageLoad() {
     this.canvasService.loadImage(
-      this.canvas!.nativeElement,
       this.image!.nativeElement,
       this.storeService.annotations(),
       this.storeService.labels()
@@ -261,6 +260,10 @@ export class AppComponent implements AfterViewInit {
   sortAnnotations() {
     this.storeService.sortAnnotations(this.storeService.annotations())
     this.reDraw();
+  }
+
+  onResize() {
+    this.canvasService.resize()
   }
 
   private back() {

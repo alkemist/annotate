@@ -33,6 +33,7 @@
         <p-button (onClick)="undo()" severity="danger" [disabled]="!hasChange()" icon="pi pi-undo"/>
         <p-button (onClick)="remove()" severity="danger" [disabled]="hasChange() || listFiles().length == 1"
                   icon="pi pi-trash"/>
+        <p-button (click)="paramDialogVisible = true" [disabled]="hasChange()" icon="pi pi-cog"/>
       }
       @if (pageLoaded() || !saving()) {
         <input #dirInput (change)="selectDirectory($event)"
@@ -40,7 +41,7 @@
                type="file"
                webkitdirectory
         />
-        <p-button icon="pi pi-folder" (onClick)="openDirectorySelection()" [label]="dirName()"/>
+        <p-button class="ellipsis" icon="pi pi-folder" (onClick)="openDirectorySelection()" [label]="dirName()"/>
       } @else {
         <i class="pi pi-spin pi-cog" style="font-size: 2rem"></i>
       }
@@ -66,7 +67,7 @@
       </div>
     </ng-template>
     <ng-template pTemplate>
-      <p-splitter [minSizes]="[20, 20, 40]" [panelSizes]="[30, 30, 40]" [style]="{ height:'100%', width: '100%' }"
+      <p-splitter [minSizes]="[20, 20, 20]" [panelSizes]="[40, 40, 20]" [style]="{ height:'100%', width: '100%' }"
                   layout="vertical"
                   styleClass="flex flex-grow-1">
         <ng-template pTemplate>
@@ -158,7 +159,7 @@
     </ng-template>
   </p-splitter>
 </div>
-<p-dialog #annotationDialog [(visible)]="dialogVisible" [modal]="true" [style]="{ width: '25rem' }"
+<p-dialog #annotationDialog [(visible)]="annotationDialogVisible" [modal]="true" [style]="{ width: '25rem' }"
           header="Edit annotation">
   <div class="flex align-items-center gap-3 mb-3">
     <label class="font-semibold w-6rem">Label</label>
@@ -182,4 +183,29 @@
     </div>
   </div>
 </p-dialog>
+<p-dialog #paramDialog [(visible)]="paramDialogVisible" [closable]="false" [modal]="true" [style]="{ width: '25rem' }"
+          header="Configuration">
+  <div class="flex align-items-center gap-3 mb-3">
+    <label class="font-semibold w-6rem">Label</label>
+    <p-dropdown [(ngModel)]="defaultAnnotationLabel"
+                [appendTo]="paramDialog"
+                [options]="listLabels()"
+                class="flex flex-grow-1"
+                optionLabel="name"
+                placeholder="Select a label"
+                styleClass="flex flex-grow-1">
+      <ng-template let-item pTemplate="selectedItem">
+        {{ item.name }}
+      </ng-template>
+    </p-dropdown>
+  </div>
+  <div class="flex align-items-center gap-3 mb-3">
+    <label class="font-semibold w-6rem">Delete security</label>
+    <p-inputSwitch [(ngModel)]="deleteSecurity"/>
+  </div>
+  <div class="flex justify-content-end gap-2">
+    <p-button (click)="defaultAnnotationLabelChange()" icon="pi pi-check" label="Save"/>
+  </div>
+</p-dialog>
+<p-confirmDialog/>
 <p-toast/>

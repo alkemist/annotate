@@ -1,8 +1,12 @@
 {
   "name": "annotate",
-  "version": "0.1.13",
+  "version": "0.1.18",
   "main": "app.js",
   "description": "Image labeler",
+  "author": {
+    "email": "jaden.achain@gmail.com",
+    "name": "Jaden ACHAIN"
+  },
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

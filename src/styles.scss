@@ -61,3 +61,12 @@ img {
   -ms-user-select: none; /* IE 10 and IE 11 */
   user-select: none; /* Standard syntax */
 }
+
+p-button.ellipsis .p-button-label {
+  max-width: 300px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  display: inline-block;
+  white-space: nowrap;
+  direction: rtl;
+}

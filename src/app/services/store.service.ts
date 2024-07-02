@@ -23,6 +23,7 @@ export class StoreService {
     {r: 111, g: 78, b: 55}, // coffee
     {r: 226, g: 61, b: 40}, // chill red
     {r: 255, g: 191, b: 0}, // amber
+    {r: 255, g: 255, b: 255}, // white
   ]
   public filterValue: string = '';
   private compareEngine: CompareEngine<any> | null = null;
@@ -33,6 +34,7 @@ export class StoreService {
   private labelsPath = '';
   private lastPath = '';
   private filesMap = new SmartMap<AnnotateImage, string>()
+  private defaultAnnotationIndex = 0;
 
   constructor() {
     effect(() => {
@@ -249,10 +251,12 @@ export class StoreService {
     this.annotationsSaving.set(true)
     this.labelsSaving.set(true)
 
-    void this.saveFile(
-      annotateImage.annotationsPath ?? `${this.dirPath}/${annotateImage.name}.txt`,
-      lines.join("\n")
-    )
+    let annotationPath = annotateImage.annotationsPath;
+    if (annotationPath.length === 0) {
+      annotationPath = `${this.dirPath}/${annotateImage.name}.txt`
+    }
+
+    void this.saveFile(annotationPath, lines.join("\n"))
 
     void this.saveFile(
       this.labelsPath,
@@ -283,9 +287,9 @@ export class StoreService {
     this._files.set(this.filesMap.getValues());
   }
 
-  addAnnotation(normCoords: NormPoints, index = 0) {
+  addAnnotation(normCoords: NormPoints) {
     const annotation = {
-      index,
+      index: this.defaultAnnotationIndex,
       points: [
         normCoords.xCenter,
         normCoords.yCenter,
@@ -303,13 +307,10 @@ export class StoreService {
   }
 
   editAnnotation(annotationIndex: number, label: AnnotationLabel) {
-    console.log(annotationIndex, label)
-
     const annotations = this._annotations()
     annotations[annotationIndex].index = label.id;
     this._annotations.set(annotations)
 
-    console.log(annotations);
     this.checkChanges();
   }
 
@@ -415,6 +416,10 @@ export class StoreService {
     this._annotations.set(annotations);
 
     this.checkChanges();
+  }
+
+  setDefaultAnnotationLabel(defaultAnnotationIndex: number) {
+    this.defaultAnnotationIndex = defaultAnnotationIndex;
   }
 
   private getState() {

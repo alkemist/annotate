@@ -13,7 +13,7 @@ import {DropdownModule} from "primeng/dropdown";
 import {RippleModule} from "primeng/ripple";
 import {ScrollPanelModule} from "primeng/scrollpanel";
 import {ToastModule} from "primeng/toast";
-import {MessageService} from "primeng/api";
+import {ConfirmationService, MessageService} from "primeng/api";
 import {CanvasService} from "../services/canvas.service";
 import {ScrollerModule} from "primeng/scroller";
 import {InputNumberModule} from "primeng/inputnumber";
@@ -41,7 +41,8 @@ const modules = [
   providers: [
     StoreService,
     CanvasService,
-    MessageService
+    MessageService,
+    ConfirmationService
   ],
   exports: modules,
 })

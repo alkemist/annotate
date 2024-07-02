@@ -163,14 +163,16 @@ export class CanvasService {
     ctx.beginPath();
     ctx.lineWidth = 1;
     ctx.setLineDash([10, 5]);
-    ctx.strokeStyle = "#000";
+    ctx.strokeStyle = "#fff";
     ctx.moveTo(from.x, from.y);
     ctx.lineTo(to.x, to.y);
     ctx.stroke();
   }
 
   public resize() {
-    this.displayRatio = this.image!.naturalWidth / this.image!.width;
+    if (this.image) {
+      this.displayRatio = this.image.naturalWidth / this.image.width;
+    }
   }
 
   private drawRectangles() {

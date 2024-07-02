@@ -5,11 +5,12 @@ import {StoreService} from "./services/store.service";
 import {SharedModule} from "./modules/shared.module";
 import {AnnotateImage} from "./models/annotateImage";
 import {DirFile} from "./models/dirFile";
-import {MessageService} from "primeng/api";
+import {ConfirmationService, MessageService} from "primeng/api";
 import {Annotation} from "./models/annotation";
 import {AnnotationLabel} from "./models/annotationLabel";
 import {CanvasService} from "./services/canvas.service";
 import packageJson from '../../package.json';
+import {ConfirmDialogModule} from "primeng/confirmdialog";
 
 @Component({
   selector: 'app-root',
@@ -19,6 +20,7 @@ import packageJson from '../../package.json';
     FormsModule,
     ReactiveFormsModule,
     SharedModule,
+    ConfirmDialogModule,
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
@@ -59,14 +61,17 @@ export class AppComponent implements AfterViewInit {
       : ''
   )
   selectedFile: AnnotateImage | null = null;
+  deleteSecurity: boolean = true;
   saving = computed(() =>
     this.storeService.annotationsSaving() && this.storeService.labelsSaving()
   );
   hasChange = computed(() =>
     this.storeService.hasChange()
   );
-  dialogVisible: boolean = false;
+  annotationDialogVisible: boolean = false;
+  paramDialogVisible: boolean = false;
   selectedAnnotationLabel = signal<AnnotationLabel | null>(null);
+  defaultAnnotationLabel = signal<AnnotationLabel | null>(null);
   selectedFileIndex: number = 0;
   navigationIndex: number = 0;
   private selectedAnnotationIndex: number | null = null;
@@ -74,7 +79,8 @@ export class AppComponent implements AfterViewInit {
   constructor(
     private storeService: StoreService,
     private canvasService: CanvasService,
-    private messageService: MessageService
+    private messageService: MessageService,
+    private confirmationService: ConfirmationService
   ) {
 
   }
@@ -110,6 +116,10 @@ export class AppComponent implements AfterViewInit {
       this.storeService.annotations(),
       this.storeService.labels()
     )
+
+    if (this.defaultAnnotationLabel() === null) {
+      this.defaultAnnotationLabel.set(this.listLabels()[0])
+    }
   }
 
   openDirectorySelection() {
@@ -173,7 +183,7 @@ export class AppComponent implements AfterViewInit {
   }
 
   save() {
-    if (this.dialogVisible) {
+    if (this.annotationDialogVisible) {
       this.saveAnnotation()
     } else if (this.hasChange() && this.selectedFile) {
       this.storeService.saveAnnotations(
@@ -184,7 +194,7 @@ export class AppComponent implements AfterViewInit {
   }
 
   editAnnotation(annotation: Annotation, annotationIndex: number) {
-    this.dialogVisible = true;
+    this.annotationDialogVisible = true;
     this.selectedAnnotationLabel.set(this.listLabels().at(annotation.index)
       ? this.listLabels().at(annotation.index)!
       : null);
@@ -192,7 +202,7 @@ export class AppComponent implements AfterViewInit {
   }
 
   saveAnnotation() {
-    this.dialogVisible = false;
+    this.annotationDialogVisible = false;
     this.storeService.editAnnotation(
       this.selectedAnnotationIndex!,
       this.selectedAnnotationLabel()!
@@ -201,7 +211,7 @@ export class AppComponent implements AfterViewInit {
   }
 
   removeAnnotation() {
-    this.dialogVisible = false;
+    this.annotationDialogVisible = false;
     this.storeService.removeAnnotation(this.selectedAnnotationIndex!)
     this.reDraw()
   }
@@ -216,8 +226,25 @@ export class AppComponent implements AfterViewInit {
   }
 
   remove() {
-    this.storeService.removeImage(this.selectedFile!)
-    this.onSelectionChange(this.selectedFileIndex, true)
+    if (this.deleteSecurity) {
+      this.confirmationService.confirm({
+        message: 'Do you want to delete this image?',
+        header: 'Delete Confirmation',
+        icon: 'pi pi-info-circle',
+        acceptButtonStyleClass: "p-button-danger p-button-text",
+        rejectButtonStyleClass: "p-button-text p-button-text",
+        acceptIcon: "none",
+        rejectIcon: "none",
+
+        accept: () => {
+          this.deleteAnnotationImage()
+        },
+        reject: () => {
+        }
+      });
+    } else {
+      this.deleteAnnotationImage()
+    }
   }
 
   checkChanges() {
@@ -248,7 +275,7 @@ export class AppComponent implements AfterViewInit {
 
     if (
       !this.hasChange()
-      && !this.dialogVisible
+      && !this.annotationDialogVisible
       && (navigationIndex !== this.selectedFileIndex || forceChange)
     ) {
       this.selectedFileIndex = navigationIndex;
@@ -266,9 +293,19 @@ export class AppComponent implements AfterViewInit {
     this.canvasService.resize()
   }
 
+  defaultAnnotationLabelChange() {
+    this.storeService.setDefaultAnnotationLabel(this.defaultAnnotationLabel()!.id)
+    this.paramDialogVisible = false;
+  }
+
+  private deleteAnnotationImage() {
+    this.storeService.removeImage(this.selectedFile!)
+    this.onSelectionChange(this.selectedFileIndex, true)
+  }
+
   private back() {
-    if (this.dialogVisible) {
-      this.dialogVisible = false;
+    if (this.annotationDialogVisible) {
+      this.annotationDialogVisible = false;
     }
   }
 }
